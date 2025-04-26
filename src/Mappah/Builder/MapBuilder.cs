@@ -23,9 +23,9 @@
         /// <param name="sourceMember">Expression representing the source property or calculated value.</param>
         /// <returns>The current <see cref="MapBuilder{TSource, TDestination}"/> instance for chaining.</returns>
         /// <exception cref="InvalidOperationException">Thrown if the destination expression is not a simple property access.</exception>
-        public MapBuilder<TSource, TDestination> For<TMember>(
-            Expression<Func<TDestination, TMember>> targetMember,
-            Expression<Func<TSource, TMember>> sourceMember)
+        public MapBuilder<TSource, TDestination> For<TTargetMember, TSourceMember>(
+            Expression<Func<TDestination, TTargetMember>> targetMember,
+            Expression<Func<TSource, TSourceMember>> sourceMember)
         {
             if (targetMember.Body is not MemberExpression memberExpression)
             {

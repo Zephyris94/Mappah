@@ -1,5 +1,6 @@
 ﻿namespace Mappah.Util
 {
+    using Mappah.Configuration;
     using System;
     using System.Collections.Generic;
     using System.Linq;
@@ -23,31 +24,27 @@
         public static Dictionary<string, PropertyInfo> BuildPropertyMap(Type type)
         {
             return GetPublicReadableWritableProperties(type)
-                .ToDictionary(p => p.Name, p => p);
+                .ToDictionary(p => p.Name, p => p, StringComparer.Ordinal);
         }
 
         public static IEnumerable<(PropertyInfo sourceProp, PropertyInfo targetProp)> FindMatchingProperties(
             Dictionary<string, PropertyInfo> sourceProps,
             PropertyInfo[] targetProps,
-            HashSet<string>? excludedProperties = null,
-            HashSet<string>? overriddenProperties = null)
+            HashSet<string> ignoredProperties,
+            HashSet<string> overriddenProperties)
         {
             foreach (var targetProp in targetProps)
             {
-                if (excludedProperties != null && excludedProperties.Contains(targetProp.Name))
-                {
+                if (ignoredProperties.Contains(targetProp.Name) || overriddenProperties.Contains(targetProp.Name))
                     continue;
-                }
-
-                if (overriddenProperties != null && overriddenProperties.Contains(targetProp.Name))
-                {
-                    continue;
-                }
 
                 if (sourceProps.TryGetValue(targetProp.Name, out var sourceProp))
                 {
-                    if (IsCompatible(sourceProp.PropertyType, targetProp.PropertyType))
+                    if (IsCompatible(sourceProp.PropertyType, targetProp.PropertyType) ||
+                        ShouldMapAsComplexType(sourceProp.PropertyType, targetProp.PropertyType))
+                    {
                         yield return (sourceProp, targetProp);
+                    }
                 }
             }
         }
@@ -55,16 +52,17 @@
         public static bool IsCompatible(Type sourceType, Type targetType)
         {
             if (targetType.IsAssignableFrom(sourceType))
-            {
                 return true;
-            }
 
             var targetUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
             var sourceUnderlying = Nullable.GetUnderlyingType(sourceType) ?? sourceType;
 
+            if (sourceUnderlying == targetUnderlying)
+                return true;
+
             try
             {
-                Convert.ChangeType(Activator.CreateInstance(sourceUnderlying), targetUnderlying);
+                _ = Convert.ChangeType(Activator.CreateInstance(sourceUnderlying), targetUnderlying);
                 return true;
             }
             catch
@@ -76,18 +74,28 @@
         public static object? ConvertValue(object? sourceValue, Type targetType)
         {
             if (sourceValue == null)
-            {
                 return null;
-            }
 
             var targetUnderlying = Nullable.GetUnderlyingType(targetType) ?? targetType;
 
             if (targetUnderlying.IsAssignableFrom(sourceValue.GetType()))
-            {
                 return sourceValue;
-            }
 
             return Convert.ChangeType(sourceValue, targetUnderlying);
+        }
+
+        public static bool ShouldMapAsComplexType(Type sourceType, Type targetType)
+        {
+            if (sourceType == typeof(string) || targetType == typeof(string))
+                return false;
+
+            if (sourceType.IsPrimitive || targetType.IsPrimitive)
+                return false;
+
+            if (sourceType.IsEnum || targetType.IsEnum)
+                return false;
+
+            return MappingConfigurationStore.ReadMappingConfiguration(sourceType, targetType) != null;
         }
     }
 }

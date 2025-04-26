@@ -1,21 +1,46 @@
-﻿namespace Mappah.Resolution
-{
-    using System;
-    using System.Collections.Generic;
-    using System.Linq;
-    using Mappah.Configuration;
-    using Mappah.Util;
+﻿using Mappah.Configuration;
+using Mappah.Util;
+using System.Reflection;
 
+namespace Mappah.Resolution
+{
     public sealed class DefaultMapResolver : IMapResolver
     {
         public TDest Map<TDest, TSource>(TSource source)
         {
-            if (source == null)
-            {
-                throw new ArgumentNullException(nameof(source));
-            }
+            ArgumentNullException.ThrowIfNull(source);
+            return MapInternal<TDest>(source);
+        }
 
-            var sourceType = typeof(TSource);
+        public IEnumerable<TDest> Map<TDest, TSource>(IEnumerable<TSource> source)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+
+            foreach (var item in source)
+            {
+                yield return Map<TDest, TSource>(item);
+            }
+        }
+
+        public TDest Map<TDest>(object source)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+            return MapInternal<TDest>(source);
+        }
+
+        public IEnumerable<TDest> Map<TDest>(IEnumerable<object> source)
+        {
+            ArgumentNullException.ThrowIfNull(source);
+
+            foreach (var item in source)
+            {
+                yield return Map<TDest>(item);
+            }
+        }
+
+        private TDest MapInternal<TDest>(object source)
+        {
+            var sourceType = source.GetType();
             var targetType = typeof(TDest);
 
             var config = MappingConfigurationStore.ReadMappingConfiguration(sourceType, targetType)
@@ -29,34 +54,63 @@
             var ignored = config.IgnoredProperties ?? new HashSet<string>();
             var overridden = config.CustomMappingOptions.Select(x => x.TargetProperty.Name).ToHashSet();
 
-            // Step 1: Auto-map matching properties (excluding ignored and overridden)
+            // Step 1: Auto-map matching properties
             foreach (var (sourceProp, targetProp) in PropertyHelper.FindMatchingProperties(sourceProps, targetProps, ignored, overridden))
             {
                 var value = sourceProp.GetValue(source);
-                var converted = PropertyHelper.ConvertValue(value, targetProp.PropertyType);
-                targetProp.SetValue(destination, converted);
+                SetValueSafely(destination, targetProp, value, sourceProp.PropertyType);
             }
 
-            // Step 2: Apply custom mapping rules
+            // Step 2: Apply custom mappings
             foreach (var custom in config.CustomMappingOptions)
             {
                 var compiled = custom.SourceExpression.Compile();
                 var value = compiled.DynamicInvoke(source);
-                var converted = PropertyHelper.ConvertValue(value, custom.TargetProperty.PropertyType);
-                custom.TargetProperty.SetValue(destination, converted);
+
+                SetValueSafely(destination, custom.TargetProperty, value);
             }
 
             return destination;
         }
 
-        public IEnumerable<TDest> Map<TDest, TSource>(IEnumerable<TSource> source)
+        private void SetValueSafely<TDest>(TDest destination, PropertyInfo targetProp, object? value, Type? sourceType = null)
         {
-            ArgumentNullException.ThrowIfNull(source);
-
-            foreach (var item in source)
+            if (value == null)
             {
-                yield return Map<TDest, TSource>(item);
+                return;
             }
+
+            var fromType = sourceType ?? value.GetType();
+
+            object? finalValue;
+
+            if (PropertyHelper.ShouldMapAsComplexType(fromType, targetProp.PropertyType))
+            {
+                finalValue = MapComplexType(value, targetProp.PropertyType);
+            }
+            else
+            {
+                finalValue = PropertyHelper.ConvertValue(value, targetProp.PropertyType);
+            }
+
+            if (targetProp.CanWrite)
+            {
+                targetProp.SetValue(destination, finalValue);
+            }
+            else
+            {
+                throw new InvalidOperationException($"Property {targetProp.Name} on {typeof(TDest).Name} does not have a setter.");
+            }
+        }
+
+
+        private object MapComplexType(object value, Type targetType)
+        {
+            var method = typeof(DefaultMapResolver)
+                .GetMethod(nameof(MapInternal), BindingFlags.NonPublic | BindingFlags.Instance)!
+                .MakeGenericMethod(targetType);
+
+            return method.Invoke(this, new[] { value })!;
         }
     }
 }
