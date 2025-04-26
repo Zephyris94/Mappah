@@ -1,6 +1,7 @@
 using Mappah.Configuration;
 using Mappah.Resolution;
 using Mappah.Tests.Models;
+using Mappah.Tests.Models.Mappah.Tests.Models;
 
 namespace Mappah.Tests
 {
@@ -13,6 +14,41 @@ namespace Mappah.Tests
             MapperConfiguration.Create<User, UserDto>()
                 .For(dest => dest.FullName, src => src.FirstName + " " + src.LastName)
                 .Skip(dest => dest.Secret);
+
+            MapperConfiguration.Create<InnerObject, InnerObjectDto>();
+            MapperConfiguration.Create<DifferentInner, DifferentInnerDto>()
+                .For(dest => dest.AnotherValue, src => src.SomeValue);
+            MapperConfiguration.Create<OuterObject, OuterObjectDto>()
+                .For(dest => dest.ManualInnerDto, src => src.DifferentInner);
+        }
+
+        [Fact]
+        public void Should_Map_Nested_Automatic_And_Manual()
+        {
+            // Arrange
+            var outer = new OuterObject
+            {
+                OuterField = 100,
+                Inner = new InnerObject
+                {
+                    TestField = 999
+                },
+                DifferentInner = new DifferentInner
+                {
+                    SomeValue = "Mapped manually"
+                }
+            };
+
+            // Act
+            var dto = _mapper.Map<OuterObjectDto, OuterObject>(outer);
+
+            // Assert
+            Assert.NotNull(dto);
+            Assert.Equal(100, dto.OuterField);
+            Assert.NotNull(dto.Inner);
+            Assert.Equal(999, dto.Inner.TestField);
+            Assert.NotNull(dto.ManualInnerDto);
+            Assert.Equal("Mapped manually", dto.ManualInnerDto.AnotherValue);
         }
 
         [Fact]
