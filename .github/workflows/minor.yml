@@ -14,6 +14,8 @@ jobs:
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GIT_TOKEN }}
 
     - name: Setup .NET
       uses: actions/setup-dotnet@v4
@@ -26,17 +28,13 @@ jobs:
     - name: Bump minor version
       run: pwsh -File ./.github/scripts/VersionBump.ps1 -Mode minor
 
-    - name: Configure Git
+    - name: Commit bumped version
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
-        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
-
-    - name: Commit bumped version
-      run: |
         git add Directory.Build.props
         git commit -m "Bump minor version"
-        git push
+        git push origin minor
 
     - name: Build
       run: dotnet build --configuration Release --no-restore
