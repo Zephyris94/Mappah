@@ -5,5 +5,6 @@
     <RepositoryUrl>https://github.com/Zephyris94/Mappah</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
     <RepositoryType>git</RepositoryType>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 </Project>

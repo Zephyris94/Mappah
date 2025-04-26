@@ -19,4 +19,8 @@
     <ProjectReference Include="..\Mappah\Mappah.csproj" />
   </ItemGroup>
 
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
+
 </Project>

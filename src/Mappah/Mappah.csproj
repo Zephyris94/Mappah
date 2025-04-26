@@ -11,4 +11,7 @@
     <PackageTags>mapper;mapping automation;dotnet</PackageTags>
   </PropertyGroup>
 
+  <ItemGroup>
+    <None Include="README.md" Pack="true" PackagePath="" />
+  </ItemGroup>
 </Project>
