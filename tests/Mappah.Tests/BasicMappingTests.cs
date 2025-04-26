@@ -40,7 +40,7 @@ namespace Mappah.Tests
             };
 
             // Act
-            var dto = _mapper.Map<OuterObjectDto, OuterObject>(outer);
+            var dto = _mapper.Map<OuterObjectDto>(outer);
 
             // Assert
             Assert.NotNull(dto);
