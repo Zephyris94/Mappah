@@ -24,15 +24,19 @@ jobs:
       run: dotnet restore
 
     - name: Bump major version
-      run: pwsh -File "./.github/scripts/VersionBump.ps1" -Mode major
+      run: pwsh -File ./.github/scripts/VersionBump.ps1 -Mode major
 
-    - name: Commit bumped version
+    - name: Configure Git
       run: |
         git config user.name "github-actions[bot]"
         git config user.email "github-actions[bot]@users.noreply.github.com"
+        git remote set-url origin https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}
+
+    - name: Commit bumped version
+      run: |
         git add Directory.Build.props
         git commit -m "Bump major version"
-        git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git HEAD:${{ github.ref }}
+        git push
 
     - name: Build
       run: dotnet build --configuration Release --no-restore
