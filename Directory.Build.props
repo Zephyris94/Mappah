@@ -1,0 +1,9 @@
+<Project>
+  <PropertyGroup>
+    <Version>1.0.1</Version>
+    <Authors>Vlad Krasnikov</Authors>
+    <RepositoryUrl>https://github.com/Zephyris94/Mappah</RepositoryUrl>
+    <PackageLicenseExpression>MIT</PackageLicenseExpression>
+	<RepositoryType>git</RepositoryType>
+  </PropertyGroup>
+</Project>
