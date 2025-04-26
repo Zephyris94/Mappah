@@ -3,9 +3,9 @@
     using System.Collections.Generic;
     using Mappah.Builder;
 
-    internal static class MapperConfiguration
+    public static class MapperConfiguration
     {
-        public static MapBuilder<TSource, TDestination> CreateMap<TSource, TDestination>()
+        public static MapBuilder<TSource, TDestination> Create<TSource, TDestination>()
         {
             var config = new MappingConfigurationEntity
             {
