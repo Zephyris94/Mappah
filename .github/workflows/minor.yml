@@ -24,7 +24,7 @@ jobs:
       run: dotnet restore
 
     - name: Bump minor version
-      run: pwsh -File ./.github/scripts/VersionBump.ps1 -Mode minor
+      run: pwsh -File ".github/scripts/VersionBump.ps1" -Mode minor
 
     - name: Commit bumped version
       run: |
