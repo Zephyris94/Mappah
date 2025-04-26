@@ -1,9 +1,10 @@
 <Project>
   <PropertyGroup>
-    <Version>1.0.1</Version>
+    <Version>1.1.0</Version>
     <Authors>Vlad Krasnikov</Authors>
     <RepositoryUrl>https://github.com/Zephyris94/Mappah</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
-	<RepositoryType>git</RepositoryType>
+    <RepositoryType>git</RepositoryType>
+	<PackageReadmeFile>README.md</PackageReadmeFile>
   </PropertyGroup>
 </Project>
