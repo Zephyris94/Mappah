@@ -21,7 +21,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\src\Mappah\Mappah.csproj" />
+    <ProjectReference Include="..\Mappah\Mappah.csproj" />
   </ItemGroup>
 
 </Project>
