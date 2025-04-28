@@ -1,14 +1,14 @@
-﻿namespace Mappah.Configuration
+﻿using System.Linq.Expressions;
+
+namespace Mappah.Configuration
 {
-    internal sealed class MappingConfigurationEntity
+    public sealed class MappingConfigurationEntity
     {
-        public Type Source { get; set; }
+        public Dictionary<string, LambdaExpression> ManualMappings { get; set; } = new();
 
-        public Type Target { get; set; }
+        public HashSet<string> SkippedProperties { get; set; } = new();
 
-        public List<CustomMappingConfigurationOption> CustomMappingOptions { get; set; } = new();
-
-        public HashSet<string> IgnoredProperties { get; set; } = new();
-
+        public List<Action<object, object>> MappingExpressions { get; set; } = new();
     }
+
 }
