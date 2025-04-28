@@ -6,6 +6,7 @@
     public static class MapperConfigurationBuilder
     {
         private static readonly List<IMapBuilder> _builders = new();
+        private static bool _built = false;
 
         public static MapBuilder<TSource, TDestination> Create<TSource, TDestination>()
         {
@@ -17,11 +18,17 @@
 
         public static void Build()
         {
+            if (_built)
+            {
+                return;
+            }
+
             foreach (var builder in _builders)
             {
                 builder.Build();
             }
             _builders.Clear();
+            _built = true;
         }
     }
 }
