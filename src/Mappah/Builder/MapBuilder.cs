@@ -70,10 +70,11 @@
         /// </summary>
         public void WithReverse()
         {
+            var source = typeof(TDestination);
+            var target = typeof(TSource);
+
             var reverseConfig = new MappingConfigurationEntity
             {
-                Source = typeof(TDestination),
-                Target = typeof(TSource),
                 CustomMappingOptions = new List<CustomMappingConfigurationOption>(),
                 IgnoredProperties = new HashSet<string>()
             };
@@ -104,7 +105,7 @@
                 reverseConfig.IgnoredProperties.Add(ignoredProp);
             }
 
-            MappingConfigurationStore.AddMappingConfiguration(reverseConfig);
+            MappingConfigurationStore.AddMappingConfiguration((source, target), reverseConfig);
         }
     }
 }

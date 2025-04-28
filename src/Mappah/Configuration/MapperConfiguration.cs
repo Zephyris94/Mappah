@@ -7,16 +7,17 @@
     {
         public static MapBuilder<TSource, TDestination> Create<TSource, TDestination>()
         {
+            var source = typeof(TSource);
+            var target = typeof(TDestination);
+
             var config = new MappingConfigurationEntity
             {
-                Source = typeof(TSource),
-                Target = typeof(TDestination),
                 CustomMappingOptions = new List<CustomMappingConfigurationOption>()
             };
 
             var builder = new MapBuilder<TSource, TDestination>(config);
 
-            MappingConfigurationStore.AddMappingConfiguration(config);
+            MappingConfigurationStore.AddMappingConfiguration((source, target), config);
 
             return builder;
         }
