@@ -95,7 +95,7 @@
             if (sourceType.IsEnum || targetType.IsEnum)
                 return false;
 
-            return MappingConfigurationStore.ReadMappingConfiguration(sourceType, targetType) != null;
+            return true;
         }
     }
 }

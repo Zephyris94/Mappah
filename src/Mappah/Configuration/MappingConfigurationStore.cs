@@ -1,21 +1,22 @@
 ﻿namespace Mappah.Configuration
 {
-    internal sealed class MappingConfigurationStore
+    internal static class MappingConfigurationStore
     {
-        private static MappingConfigurationEntity[] _mappingConfigurationList = new MappingConfigurationEntity[0];
+        private static readonly Dictionary<(Type Source, Type Target), MappingConfigurationEntity> _mappingConfigurations = new();
 
-        public static void AddMappingConfiguration(MappingConfigurationEntity config)
+        public static void AddMappingConfiguration((Type Source, Type Target) key, MappingConfigurationEntity config)
         {
-            Array.Resize(ref _mappingConfigurationList, _mappingConfigurationList.Length + 1);
-
-            _mappingConfigurationList[_mappingConfigurationList.Length - 1] = config;
+            _mappingConfigurations.TryAdd(key, config);
         }
 
         public static MappingConfigurationEntity? ReadMappingConfiguration(Type sourceType, Type targetType)
         {
-            var mappingConfiguration = _mappingConfigurationList.FirstOrDefault(x => x.Source.Equals(sourceType) && x.Target.Equals(targetType));
+            if (_mappingConfigurations.TryGetValue((sourceType, targetType), out var config))
+            {
+                return config;
+            }
 
-            return mappingConfiguration;
+            throw new Exception($"Mapping configuration of source '{sourceType}' and target '{targetType}' was not found");
         }
     }
 }

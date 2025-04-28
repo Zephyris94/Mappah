@@ -11,15 +11,17 @@ namespace Mappah.Tests
 
         public BasicMappingTests()
         {
-            MapperConfiguration.Create<User, UserDto>()
+            MapperConfigurationBuilder.Create<User, UserDto>()
                 .For(dest => dest.FullName, src => src.FirstName + " " + src.LastName)
                 .Skip(dest => dest.Secret);
 
-            MapperConfiguration.Create<InnerObject, InnerObjectDto>();
-            MapperConfiguration.Create<DifferentInner, DifferentInnerDto>()
+            MapperConfigurationBuilder.Create<InnerObject, InnerObjectDto>();
+            MapperConfigurationBuilder.Create<DifferentInner, DifferentInnerDto>()
                 .For(dest => dest.AnotherValue, src => src.SomeValue);
-            MapperConfiguration.Create<OuterObject, OuterObjectDto>()
+            MapperConfigurationBuilder.Create<OuterObject, OuterObjectDto>()
                 .For(dest => dest.ManualInnerDto, src => src.DifferentInner);
+
+            MapperConfigurationBuilder.Build();
         }
 
         [Fact]
