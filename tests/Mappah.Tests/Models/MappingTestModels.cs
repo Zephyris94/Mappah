@@ -57,4 +57,22 @@
         public string Important { get; set; }
         public string Secret { get; set; }
     }
+
+    public class ToReverseSource
+    {
+        public string Name { get; set; }
+
+        public int Age { get; set; }
+
+        public string Secret { get; set; }
+    }
+
+    public class ReversedSource
+    {
+        public string Name { get; set; }
+
+        public int Age { get; set; }
+
+        public string Secret { get; set; }
+    }
 }

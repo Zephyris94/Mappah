@@ -9,6 +9,17 @@ Minimalist object-to-object mapper for .NET.
 
 ---
 
+## 💡 Features
+
+- Auto-mapping properties by name
+- Custom property mapping with expressions (`For`)
+- Ignoring properties (`Skip()`)
+- Reverse mapping support (`WithReverse()`)
+- Nested mapping support (native, just configure both nested and parent entities)
+- ASP.NET Core integration via `AddMappah()`
+
+---
+
 ## 🚀 Target Frameworks
 - [.NET 8.0](https://dotnet.microsoft.com/en-us/download/dotnet/8.0) and higher
 
@@ -30,12 +41,28 @@ dotnet add package Mappah.Extensions
 
 ## 🚀 Quick Start
 
-Define a mapping:
+Define a one-way mapping:
 
 ```csharp
-MapperConfiguration.Create<User, UserDto>()
+MapperConfigurationBuilder.Create<User, UserDto>()
     .For(dest => dest.FullName, src => src.FirstName + " " + src.LastName)
     .Skip(dest => dest.Password);
+
+```
+
+Or you can use WithReverse() to configure mapping backwards:
+```csharp
+MapperConfigurationBuilder.Create<User, UserDto>()
+    .For(dest => dest.FullName, src => src.FirstName + " " + src.LastName)
+    .Skip(dest => dest.Password)
+    .WithReverse()
+    .For(dest => dest.FirstName, src => src.FullName.Split(' ')[0])
+    .For(dest => dest.LastName, src => src.FullName.Split(' ')[1]);
+```
+
+Build the configuration after mapping definition:
+```csharp
+MapperConfigurationBuilder.Build();
 ```
 
 Use the mapper:
@@ -51,17 +78,6 @@ var anotherUserDto = mapper.Map<UserDto>(user);
 // userDto.FullName == "John Doe"
 // userDto.Password == null
 ```
-
----
-
-## 💡 Features
-
-- Auto-mapping properties by name
-- Custom property mapping with expressions
-- Ignoring properties
-- Reverse mapping support (`WithReverse()`)
-- Nested mapping support (native, just configure both nested and parent entities)
-- ASP.NET Core integration via `AddMappah()`
 
 ---
 

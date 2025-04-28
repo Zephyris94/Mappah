@@ -22,7 +22,37 @@ namespace Mappah.Tests
             MapperConfigurationBuilder.Create<SkipSource, SkipDestination>()
                 .Skip(dest => dest.Secret);
 
+            MapperConfigurationBuilder.Create<ToReverseSource, ReversedSource>()
+                .Skip(dest => dest.Secret)
+                .WithReverse()
+                .For(dest => dest.Name, src => src.Name + " 123")
+                .Skip(dest => dest.Age);
+
             MapperConfigurationBuilder.Build();
+        }
+
+        [Fact]
+        public void Reverse_Mapping()
+        {
+            var source = new ToReverseSource
+            {
+                Name = "ATest",
+                Age = 18,
+                Secret = "qwerty"
+            };
+
+            var dest = _mapper.Map<ReversedSource>(source);
+
+            Assert.Null(dest.Secret);
+            Assert.Equal(source.Name, dest.Name);
+            Assert.Equal(source.Age, dest.Age);
+
+            dest.Secret = "reversed";
+            var reversedSource = _mapper.Map<ToReverseSource>(dest);
+            
+            Assert.Equal(0, reversedSource.Age);
+            Assert.Equal(dest.Secret, reversedSource.Secret);
+            Assert.Equal(dest.Name + " 123", reversedSource.Name );
         }
 
         [Fact]

@@ -8,10 +8,17 @@ namespace Mappah.Builder
     public sealed class MapBuilder<TSource, TDestination> : IMapBuilder
     {
         private readonly MappingConfigurationEntity _config;
+        private MapBuilder<TDestination, TSource>? _reverseBuilder;
 
         public MapBuilder(MappingConfigurationEntity config)
         {
             _config = config;
+        }
+
+        public MapBuilder<TDestination, TSource> WithReverse()
+        {
+            _reverseBuilder = new MapBuilder<TDestination, TSource>(new MappingConfigurationEntity());
+            return _reverseBuilder;
         }
 
         public MapBuilder<TSource, TDestination> For<TDestMember>(Expression<Func<TDestination, TDestMember>> targetMember, Expression<Func<TSource, object>> sourceExpression)
@@ -29,6 +36,19 @@ namespace Mappah.Builder
         }
 
         public void Build()
+        {
+            InternalBuild();
+
+            if (_reverseBuilder != null)
+            {
+                _reverseBuilder.InternalBuild();
+            }
+
+            _config.SkippedProperties.Clear();
+            _config.ManualMappings.Clear();
+        }
+
+        private void InternalBuild()
         {
             foreach (var targetProp in typeof(TDestination).GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
@@ -53,9 +73,6 @@ namespace Mappah.Builder
                     _config.MappingExpressions.Add(action);
                 }
             }
-
-            _config.SkippedProperties.Clear();
-            _config.ManualMappings.Clear();
 
             MappingConfigurationStore.AddMappingConfiguration((typeof(TSource), typeof(TDestination)), _config);
         }
