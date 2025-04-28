@@ -13,13 +13,17 @@ namespace Mappah.Tests
         {
             MapperConfiguration.Create<User, UserDto>()
                 .For(dest => dest.FullName, src => src.FirstName + " " + src.LastName)
-                .Skip(dest => dest.Secret);
+                .Skip(dest => dest.Secret)
+                .Build();
 
-            MapperConfiguration.Create<InnerObject, InnerObjectDto>();
+            MapperConfiguration.Create<InnerObject, InnerObjectDto>()
+                .Build();
             MapperConfiguration.Create<DifferentInner, DifferentInnerDto>()
-                .For(dest => dest.AnotherValue, src => src.SomeValue);
+                .For(dest => dest.AnotherValue, src => src.SomeValue)
+                .Build();
             MapperConfiguration.Create<OuterObject, OuterObjectDto>()
-                .For(dest => dest.ManualInnerDto, src => src.DifferentInner);
+                .For(dest => dest.ManualInnerDto, src => src.DifferentInner)
+                .Build();
         }
 
         [Fact]

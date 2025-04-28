@@ -1,111 +1,72 @@
-﻿namespace Mappah.Builder
-{
-    using System;
-    using System.Collections.Generic;
-    using System.Linq.Expressions;
-    using System.Reflection;
-    using Mappah.Configuration;
+﻿using Mappah.Configuration;
+using Mappah.Util;
+using System.Linq.Expressions;
+using System.Reflection;
 
+namespace Mappah.Builder
+{
     public sealed class MapBuilder<TSource, TDestination>
     {
-        private readonly MappingConfigurationEntity _config;
+        private readonly List<Action<object, object>> _mappingExpressions;
+        private readonly Dictionary<string, LambdaExpression> _manualMappings = new();
+        private readonly HashSet<string> _skippedProperties = new();
 
-        internal MapBuilder(MappingConfigurationEntity config)
+        public MapBuilder(List<Action<object, object>> mappingExpressions)
         {
-            _config = config;
+            _mappingExpressions = mappingExpressions;
         }
 
-        /// <summary>
-        /// Defines a mapping between a destination property and a source expression.
-        /// </summary>
-        /// <typeparam name="TMember">The type of the mapped member (property type).</typeparam>
-        /// <param name="targetMember">Expression representing the destination property.</param>
-        /// <param name="sourceMember">Expression representing the source property or calculated value.</param>
-        /// <returns>The current <see cref="MapBuilder{TSource, TDestination}"/> instance for chaining.</returns>
-        /// <exception cref="InvalidOperationException">Thrown if the destination expression is not a simple property access.</exception>
-        public MapBuilder<TSource, TDestination> For<TTargetMember, TSourceMember>(
-            Expression<Func<TDestination, TTargetMember>> targetMember,
+        public MapBuilder<TSource, TDestination> For<TDestMember, TSourceMember>(
+            Expression<Func<TDestination, TDestMember>> targetMember,
             Expression<Func<TSource, TSourceMember>> sourceMember)
         {
-            if (targetMember.Body is not MemberExpression memberExpression)
-            {
-                throw new InvalidOperationException("'For' expects a simple property access on the destination.");
-            }
-
-            var targetProperty = (PropertyInfo)memberExpression.Member;
-
-            _config.CustomMappingOptions.Add(new CustomMappingConfigurationOption
-            {
-                TargetProperty = targetProperty,
-                SourceExpression = sourceMember
-            });
-
+            var targetName = GetMemberName(targetMember);
+            _manualMappings[targetName] = sourceMember;
             return this;
         }
 
-        /// <summary>
-        /// Marks the specified destination property to be ignored during mapping.
-        /// </summary>
-        /// <typeparam name="TMember">The type of the destination property.</typeparam>
-        /// <param name="targetMember">Expression representing the destination property to ignore.</param>
-        /// <returns>The current <see cref="MapBuilder{TSource, TDestination}"/> instance for chaining.</returns>
-        /// <exception cref="InvalidOperationException">Thrown if the destination expression is not a simple property access.</exception>
-        public MapBuilder<TSource, TDestination> Skip<TMember>(
-            Expression<Func<TDestination, TMember>> targetMember)
+        public MapBuilder<TSource, TDestination> Skip<TDestMember>(
+            Expression<Func<TDestination, TDestMember>> targetMember)
         {
-            if (targetMember.Body is not MemberExpression memberExpression)
-            {
-                throw new InvalidOperationException("'Skip' expects a simple property access on the destination.");
-            }
-
-            var targetProperty = (PropertyInfo)memberExpression.Member;
-
-            _config.IgnoredProperties.Add(targetProperty.Name);
-
+            var targetName = GetMemberName(targetMember);
+            _skippedProperties.Add(targetName);
             return this;
         }
 
-        /// <summary>
-        /// Indicates presence of reverse mapping
-        /// </summary>
-        public void WithReverse()
+        public void Build()
         {
-            var source = typeof(TDestination);
-            var target = typeof(TSource);
-
-            var reverseConfig = new MappingConfigurationEntity
+            foreach (var targetProp in typeof(TDestination).GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
-                CustomMappingOptions = new List<CustomMappingConfigurationOption>(),
-                IgnoredProperties = new HashSet<string>()
-            };
+                if (!targetProp.CanWrite || !targetProp.CanRead)
+                    continue;
 
-            // Reverse mapping transition
-            foreach (var option in _config.CustomMappingOptions)
-            {
-                if (option.SourceExpression is LambdaExpression sourceExpr &&
-                    sourceExpr.Body is MemberExpression sourceMemberExpr)
+                if (_skippedProperties.Contains(targetProp.Name))
+                    continue;
+
+                if (_manualMappings.TryGetValue(targetProp.Name, out var manualSource))
                 {
-                    var sourceProp = (PropertyInfo)sourceMemberExpr.Member;
+                    var action = MappingExpressionCompiler.CompileManual<TSource, TDestination>(manualSource, targetProp);
+                    _mappingExpressions.Add(action);
+                }
+                else
+                {
+                    var sourceProp = typeof(TSource).GetProperty(targetProp.Name, BindingFlags.Instance | BindingFlags.Public);
 
-                    reverseConfig.CustomMappingOptions.Add(new CustomMappingConfigurationOption
+                    if (sourceProp != null && sourceProp.CanRead)
                     {
-                        TargetProperty = sourceProp,
-                        SourceExpression = Expression.Lambda
-                        (Expression.Property
-                        (Expression.Parameter(typeof(TDestination), "src")
-                        , option.TargetProperty)
-                        , Expression.Parameter(typeof(TDestination), "src"))
-                    });
+                        var action = MappingExpressionCompiler.CompileAuto<TSource, TDestination>(sourceProp, targetProp);
+                        _mappingExpressions.Add(action);
+                    }
                 }
             }
+        }
 
-            // Ignored properties transition
-            foreach (var ignoredProp in _config.IgnoredProperties)
-            {
-                reverseConfig.IgnoredProperties.Add(ignoredProp);
-            }
+        private static string GetMemberName<T, TMember>(Expression<Func<T, TMember>> memberSelector)
+        {
+            if (memberSelector.Body is not MemberExpression memberExpr)
+                throw new InvalidOperationException("Only simple property accessors are allowed.");
 
-            MappingConfigurationStore.AddMappingConfiguration((source, target), reverseConfig);
+            return memberExpr.Member.Name;
         }
     }
 }

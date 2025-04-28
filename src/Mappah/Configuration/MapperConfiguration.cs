@@ -10,10 +10,7 @@
             var source = typeof(TSource);
             var target = typeof(TDestination);
 
-            var config = new MappingConfigurationEntity
-            {
-                CustomMappingOptions = new List<CustomMappingConfigurationOption>()
-            };
+            var config = new List<Action<object, object>>();
 
             var builder = new MapBuilder<TSource, TDestination>(config);
 
