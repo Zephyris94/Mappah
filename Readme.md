@@ -17,6 +17,7 @@ Minimalist object-to-object mapper for .NET.
 - Reverse mapping support (`WithReverse()`)
 - Nested mapping support (native, just configure both nested and parent entities)
 - ASP.NET Core integration via `AddMappah()`
+- Optimized collectio mapping via `WithCollection()`
 
 ---
 
@@ -80,6 +81,19 @@ var anotherUserDto = mapper.Map<UserDto>(user);
 ```
 
 ---
+
+## 🔧 Collection  mapping optimization
+Mappah supports nested and explisit mapping of collections
+It will recognize if mappable properties are collections automatically
+But you can improve performance if you explicitly configure what properties will be mapped as collections
+To do so you can use WithCollection(...)
+
+```csharp
+ MapperConfigurationBuilder.Create<TypeA, TypeB>()
+    .WithCollection(dest => dest.CollectionB, src => src.CollectionA);
+````
+
+This allows the expression tree builder to pre-compile mapping expression for your collection
 
 ## 🔧 ASP.NET Core Integration
 
