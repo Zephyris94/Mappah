@@ -1,4 +1,6 @@
 ﻿using Mappah.Configuration;
+using Mappah.Util;
+using System.Collections;
 
 namespace Mappah.Resolution
 {
@@ -16,17 +18,41 @@ namespace Mappah.Resolution
             return Map<TDest>(source);
         }
 
-        public IEnumerable<TDest> Map<TDest, TSource>(IEnumerable<TSource> source)
+        public TDest Map<TDest>(object source)
         {
-            ArgumentNullException.ThrowIfNull(source);
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
 
-            foreach (var item in source)
+            if (source is IEnumerable sourceEnumerable && !(source is string))
             {
-                yield return Map<TDest>(item!);
+                var sourceElementType = PropertyHelper.GetElementType(source.GetType());
+                var targetElementType = PropertyHelper.GetElementType(typeof(TDest));
+
+                if (sourceElementType == null || targetElementType == null)
+                    throw new InvalidOperationException("Couldn't define collection types");
+
+                var mapMethod = typeof(DefaultMapResolver).GetMethod(nameof(Map), new[] { typeof(object) });
+                var genericMapMethod = mapMethod.MakeGenericMethod(targetElementType);
+
+                var destination = Activator.CreateInstance(typeof(TDest));
+                if (destination is not IList destinationList)
+                    throw new InvalidOperationException("Target collection should inherit IList");
+
+                foreach (var item in sourceEnumerable)
+                {
+                    var mappedItem = genericMapMethod.Invoke(this, new[] { item });
+                    destinationList.Add(mappedItem);
+                }
+
+                return (TDest)destination;
+            }
+            else
+            {
+                return MapInternalSingleElement<TDest>(source);
             }
         }
 
-        public TDest Map<TDest>(object source)
+        private TDest MapInternalSingleElement<TDest>(object source)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -43,16 +69,6 @@ namespace Mappah.Resolution
             }
 
             return destination;
-        }
-
-        public IEnumerable<TDest> Map<TDest>(IEnumerable<object> source)
-        {
-            ArgumentNullException.ThrowIfNull(source);
-
-            foreach (var item in source)
-            {
-                yield return Map<TDest>(item!);
-            }
         }
     }
 }
