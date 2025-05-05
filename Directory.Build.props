@@ -1,6 +1,6 @@
 <Project>
   <PropertyGroup>
-    <Version>2.2.0</Version>
+    <Version>2.3.0</Version>
     <Authors>Vlad Krasnikov</Authors>
     <RepositoryUrl>https://github.com/Zephyris94/Mappah</RepositoryUrl>
     <PackageLicenseExpression>MIT</PackageLicenseExpression>
