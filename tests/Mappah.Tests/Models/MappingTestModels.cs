@@ -1,5 +1,18 @@
 ﻿namespace Mappah.Tests.Models
 {
+    public class NestedManualDifferentCollectionSource
+    {
+        public PrimitiveSource[] CollectionOne { get; set; }
+        public List<PrimitiveSource> CollectionTwo { get; set; }
+    }
+
+    public class NestedManualDifferentCollectionTarget
+    {
+        public List<PrimitiveDestination> CollectionOne { get; set; }
+
+        public PrimitiveDestination[] CollectionTwo { get; set; }
+    }
+
     public class NestedManualCollectionSource
     {
         public List<PrimitiveSource> Collection { get; set; }

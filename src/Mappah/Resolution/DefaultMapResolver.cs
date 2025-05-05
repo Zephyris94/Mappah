@@ -23,33 +23,55 @@ namespace Mappah.Resolution
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
 
+            var sourceType = source.GetType();
+            var targetType = typeof(TDest);
+
+            var config = MappingConfigurationStore.TryReadMappingConfiguration(sourceType, targetType);
+            if (config != null)
+            {
+                return MapInternalSingleElement<TDest>(source);
+            }
+
             if (source is IEnumerable sourceEnumerable && !(source is string))
             {
-                var sourceElementType = PropertyHelper.GetElementType(source.GetType());
-                var targetElementType = PropertyHelper.GetElementType(typeof(TDest));
+                var elementType = PropertyHelper.GetElementType(targetType)
+                    ?? throw new InvalidOperationException("Couldn't determine collection element type");
 
-                if (sourceElementType == null || targetElementType == null)
-                    throw new InvalidOperationException("Couldn't define collection types");
+                var mapMethod = typeof(DefaultMapResolver).GetMethod(nameof(Map), new[] { typeof(object) })!;
+                var genericMapMethod = mapMethod.MakeGenericMethod(elementType);
 
-                var mapMethod = typeof(DefaultMapResolver).GetMethod(nameof(Map), new[] { typeof(object) });
-                var genericMapMethod = mapMethod.MakeGenericMethod(targetElementType);
+                if (targetType.IsArray)
+                {
+                    var tempList = new List<object>();
+                    foreach (var item in sourceEnumerable)
+                    {
+                        var mapped = genericMapMethod.Invoke(this, new[] { item });
+                        tempList.Add(mapped);
+                    }
 
-                var destination = Activator.CreateInstance(typeof(TDest));
-                if (destination is not IList destinationList)
-                    throw new InvalidOperationException("Target collection should inherit IList");
+                    var array = Array.CreateInstance(elementType, tempList.Count);
+                    for (int i = 0; i < tempList.Count; i++)
+                        array.SetValue(tempList[i], i);
+
+                    return (TDest)(object)array;
+                }
+
+                var destination = Activator.CreateInstance(targetType)
+                                 ?? throw new InvalidOperationException($"Cannot create an instance of type {targetType.FullName}");
+
+                if (destination is not IList destList)
+                    throw new InvalidOperationException($"Target type {targetType} must implement IList");
 
                 foreach (var item in sourceEnumerable)
                 {
-                    var mappedItem = genericMapMethod.Invoke(this, new[] { item });
-                    destinationList.Add(mappedItem);
+                    var mapped = genericMapMethod.Invoke(this, new[] { item });
+                    destList.Add(mapped);
                 }
 
                 return (TDest)destination;
             }
-            else
-            {
-                return MapInternalSingleElement<TDest>(source);
-            }
+
+            throw new InvalidOperationException($"No mapping configuration found for {source.GetType().FullName} -> {typeof(TDest).FullName}");
         }
 
         private TDest MapInternalSingleElement<TDest>(object source)

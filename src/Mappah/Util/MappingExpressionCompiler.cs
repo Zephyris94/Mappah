@@ -40,7 +40,8 @@ namespace Mappah.Util
         }
 
         public static Action<object, object> CompileCollection<TSource, TDestination, TSourceItem, TDestItem>(
-            PropertyInfo sourceProp, PropertyInfo targetProp)
+            PropertyInfo sourceProp,
+            PropertyInfo targetProp)
         {
             var sourceParam = Expression.Parameter(typeof(object), "source");
             var destParam = Expression.Parameter(typeof(object), "destination");
@@ -48,65 +49,68 @@ namespace Mappah.Util
             var sourceCast = Expression.Convert(sourceParam, typeof(TSource));
             var destCast = Expression.Convert(destParam, typeof(TDestination));
 
-            var sourceValue = Expression.Property(sourceCast, sourceProp);
-            var destValue = Expression.Property(destCast, targetProp);
+            // sourceCollection = ((TSource)source).<sourceProp>
+            var sourceCollection = Expression.Property(sourceCast, sourceProp);
 
-            // typeof(List<DestItem>)
-            var targetCollectionType = targetProp.PropertyType;
-            if (!typeof(IList).IsAssignableFrom(targetCollectionType))
-                throw new InvalidOperationException($"Target property '{targetProp.Name}' must implement IList.");
+            // list = new List<TDestItem>();
+            var listVar = Expression.Variable(typeof(List<TDestItem>), "list");
+            var listCtor = Expression.New(typeof(List<TDestItem>));
+            var assignList = Expression.Assign(listVar, listCtor);
 
-            // Create List<DestItem>
-            var listCtor = Expression.New(targetCollectionType);
-            var listVar = Expression.Variable(targetCollectionType, "list");
+            // foreach (var item in sourceCollection)
+            var itemVar = Expression.Variable(typeof(TSourceItem), "item");
+            var enumeratorVar = Expression.Variable(typeof(IEnumerator<TSourceItem>), "enumerator");
 
-            var assignList = Expression.Assign(destValue, listVar);
-
-            // Foreach loop over sourceValue (IEnumerable<TSourceItem>)
-            var elementVar = Expression.Variable(typeof(TSourceItem), "item");
-            var loopVar = Expression.Variable(typeof(IEnumerator<TSourceItem>), "enumerator");
+            var getEnumerator = Expression.Call(sourceCollection, typeof(IEnumerable<TSourceItem>).GetMethod("GetEnumerator")!);
+            var moveNext = Expression.Call(enumeratorVar, typeof(IEnumerator).GetMethod("MoveNext")!);
+            var current = Expression.Property(enumeratorVar, "Current");
             var breakLabel = Expression.Label("LoopBreak");
 
-            var getEnumeratorCall = Expression.Call(sourceValue, typeof(IEnumerable<TSourceItem>).GetMethod("GetEnumerator")!);
-            var assignEnumerator = Expression.Assign(loopVar, getEnumeratorCall);
+            var mapMethod = typeof(DefaultMapResolver)
+                .GetMethod(nameof(DefaultMapResolver.MapDefault), BindingFlags.NonPublic | BindingFlags.Instance)!
+                .MakeGenericMethod(typeof(TDestItem));
 
-            var moveNextCall = Expression.Call(loopVar, typeof(IEnumerator).GetMethod("MoveNext")!);
+            var mappedItem = Expression.Call(Expression.Constant(DefaultMapResolver.Instance), mapMethod, itemVar);
+            var addCall = Expression.Call(listVar, typeof(List<TDestItem>).GetMethod("Add")!, mappedItem);
+
             var loopBody = Expression.Block(
-                new[] { elementVar },
-                Expression.Assign(elementVar, Expression.Property(loopVar, "Current")),
-
-                // map item
-                Expression.Call(
-                    listVar,
-                    targetCollectionType.GetMethod("Add")!,
-                    Expression.Call(
-                        Expression.Constant(DefaultMapResolver.Instance),
-                        typeof(DefaultMapResolver).GetMethod("MapDefault", BindingFlags.NonPublic | BindingFlags.Instance)!.MakeGenericMethod(typeof(TDestItem)),
-                        Expression.Convert(elementVar, typeof(object))
-                    )
+                new[] { enumeratorVar, itemVar },
+                Expression.Assign(enumeratorVar, getEnumerator),
+                Expression.Loop(
+                    Expression.IfThenElse(
+                        Expression.IsFalse(moveNext),
+                        Expression.Break(breakLabel),
+                        Expression.Block(
+                            Expression.Assign(itemVar, current),
+                            addCall
+                        )
+                    ),
+                    breakLabel
                 )
             );
 
-            var loop = Expression.Loop(
-                Expression.IfThenElse(
-                    Expression.IsTrue(moveNextCall),
-                    loopBody,
-                    Expression.Break(breakLabel)
-                ),
-                breakLabel
+            // Преобразование листа в нужный тип (array или просто лист)
+            Expression assignedCollection;
+
+            if (targetProp.PropertyType.IsArray)
+            {
+                var toArrayCall = Expression.Call(listVar, typeof(List<TDestItem>).GetMethod("ToArray")!);
+                assignedCollection = Expression.Assign(Expression.Property(destCast, targetProp), toArrayCall);
+            }
+            else
+            {
+                assignedCollection = Expression.Assign(Expression.Property(destCast, targetProp), listVar);
+            }
+
+            var body = Expression.Block(
+                new[] { listVar },
+                assignList,
+                loopBody,
+                assignedCollection
             );
 
-            var block = Expression.Block(
-                new[] { listVar, loopVar },
-                Expression.Assign(listVar, listCtor),
-                Expression.Assign(destValue, listVar),
-                assignEnumerator,
-                loop
-            );
-
-            return Expression.Lambda<Action<object, object>>(block, sourceParam, destParam).Compile();
+            return Expression.Lambda<Action<object, object>>(body, sourceParam, destParam).Compile();
         }
-
 
         private static Action<object, object> CompileCore(
             Expression sourceValue,

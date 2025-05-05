@@ -35,11 +35,54 @@ namespace Mappah.Tests
             MapperConfigurationBuilder.Create<NestedManualCollectionSource, NestedManualCollectionTarget>()
                 .WithCollection(dest => dest.Collection, src => src.Collection);
 
+            MapperConfigurationBuilder.Create<NestedManualDifferentCollectionSource, NestedManualDifferentCollectionTarget>()
+                .WithCollection(dest => dest.CollectionOne, src => src.CollectionOne)
+                .WithCollection(dest => dest.CollectionTwo, src => src.CollectionTwo);
+
             MapperConfigurationBuilder.Build();
         }
 
         [Fact]
         public void Manual_Nested_Collection_Mapping()
+        {
+            var src = new NestedManualDifferentCollectionSource();
+            src.CollectionTwo = new List<PrimitiveSource>();
+            for (int i = 0; i < 10; i++)
+            {
+                src.CollectionTwo.Add(new PrimitiveSource
+                {
+                    Age = i,
+                    Name = (i + 10).ToString()
+                });
+            }
+            src.CollectionOne = src.CollectionTwo.Select(x => new PrimitiveSource
+            {
+                Age = x.Age,
+                Name = x.Name
+            }).ToArray();
+
+            var result = _mapper.Map<NestedManualDifferentCollectionTarget>(src);
+
+            Assert.Equal(src.CollectionOne.Length, result.CollectionOne.Count);
+            Assert.Equal(src.CollectionTwo.Count, result.CollectionTwo.Length);
+            for (int i = 0; i < src.CollectionOne.Length; i++)
+            {
+                var srcElemOne = src.CollectionOne[i];
+                var tarElemOne = result.CollectionOne[i];
+
+                var srcElemTwo = src.CollectionTwo[i];
+                var tarElemTwo = result.CollectionTwo[i];
+
+                Assert.Equal(srcElemOne.Name, srcElemOne.Name);
+                Assert.Equal(srcElemOne.Age, srcElemOne.Age);
+
+                Assert.Equal(srcElemTwo.Name, srcElemTwo.Name);
+                Assert.Equal(srcElemTwo.Age, srcElemTwo.Age);
+            }
+        }
+
+        [Fact]
+        public void Manual_Nested_DiffType_Collection_Mapping()
         {
             var src = new NestedManualCollectionSource();
             src.Collection = new List<PrimitiveSource>();

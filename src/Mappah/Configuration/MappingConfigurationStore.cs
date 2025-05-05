@@ -18,5 +18,15 @@
 
             throw new Exception($"Mapping configuration of source '{sourceType}' and target '{targetType}' was not found");
         }
+
+        public static MappingConfigurationEntity? TryReadMappingConfiguration(Type sourceType, Type targetType)
+        {
+            if (_mappingConfigurations.TryGetValue((sourceType, targetType), out var config))
+            {
+                return config;
+            }
+
+            return null;
+        }
     }
 }
