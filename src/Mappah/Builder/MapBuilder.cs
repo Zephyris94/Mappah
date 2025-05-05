@@ -15,6 +15,24 @@ namespace Mappah.Builder
             _config = config;
         }
 
+        public MapBuilder<TSource, TDestination> WithCollection<TSourceItem, TDestItem>(
+            Expression<Func<TDestination, IEnumerable<TDestItem>>> targetMember,
+            Expression<Func<TSource, IEnumerable<TSourceItem>>> sourceMember)
+        {
+            var targetProp = GetPropertyInfo(targetMember);
+            var sourceProp = GetPropertyInfo(sourceMember);
+
+            var action = MappingExpressionCompiler.CompileCollection<TSource, TDestination, TSourceItem, TDestItem>(sourceProp, targetProp);
+
+            // Always overwrite collection mapping if present
+            _config.MappingExpressions.RemoveAll(existing =>
+                existing.Method.Name == action.Method.Name);
+
+            _config.MappingExpressions.Add(action);
+            return this;
+        }
+
+
         public MapBuilder<TDestination, TSource> WithReverse()
         {
             _reverseBuilder = new MapBuilder<TDestination, TSource>(new MappingConfigurationEntity());
@@ -24,7 +42,13 @@ namespace Mappah.Builder
         public MapBuilder<TSource, TDestination> For<TDestMember>(Expression<Func<TDestination, TDestMember>> targetMember, Expression<Func<TSource, object>> sourceExpression)
         {
             var targetName = GetMemberName(targetMember);
-            _config.ManualMappings[targetName] = sourceExpression;
+
+            // Don't overwrite existing mapping ("first wins")
+            if (!_config.ManualMappings.ContainsKey(targetName))
+            {
+                _config.ManualMappings[targetName] = sourceExpression;
+            }
+
             return this;
         }
 
@@ -76,6 +100,18 @@ namespace Mappah.Builder
 
             MappingConfigurationStore.AddMappingConfiguration((typeof(TSource), typeof(TDestination)), _config);
         }
+
+        private static PropertyInfo GetPropertyInfo<T, TProp>(Expression<Func<T, TProp>> memberSelector)
+        {
+            if (memberSelector.Body is MemberExpression member)
+                return (PropertyInfo)member.Member;
+
+            if (memberSelector.Body is UnaryExpression unary && unary.Operand is MemberExpression memberOperand)
+                return (PropertyInfo)memberOperand.Member;
+
+            throw new ArgumentException("Invalid expression");
+        }
+
 
         private static string GetMemberName<T, TProp>(Expression<Func<T, TProp>> memberSelector)
         {

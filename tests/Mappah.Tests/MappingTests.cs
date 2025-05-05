@@ -28,7 +28,168 @@ namespace Mappah.Tests
                 .For(dest => dest.Name, src => src.Name + " 123")
                 .Skip(dest => dest.Age);
 
+            MapperConfigurationBuilder.Create<PrimitiveModel, TargetPrimitiveModel>();
+
+            MapperConfigurationBuilder.Create<NestedCollectionSource, NestedCollectionTarget>();
+
+            MapperConfigurationBuilder.Create<NestedManualCollectionSource, NestedManualCollectionTarget>()
+                .WithCollection(dest => dest.Collection, src => src.Collection);
+
+            MapperConfigurationBuilder.Create<NestedManualDifferentCollectionSource, NestedManualDifferentCollectionTarget>()
+                .WithCollection(dest => dest.CollectionOne, src => src.CollectionOne)
+                .WithCollection(dest => dest.CollectionTwo, src => src.CollectionTwo);
+
             MapperConfigurationBuilder.Build();
+        }
+
+        [Fact]
+        public void Manual_Nested_Collection_Mapping()
+        {
+            var src = new NestedManualDifferentCollectionSource();
+            src.CollectionTwo = new List<PrimitiveSource>();
+            for (int i = 0; i < 10; i++)
+            {
+                src.CollectionTwo.Add(new PrimitiveSource
+                {
+                    Age = i,
+                    Name = (i + 10).ToString()
+                });
+            }
+            src.CollectionOne = src.CollectionTwo.Select(x => new PrimitiveSource
+            {
+                Age = x.Age,
+                Name = x.Name
+            }).ToArray();
+
+            var result = _mapper.Map<NestedManualDifferentCollectionTarget>(src);
+
+            Assert.Equal(src.CollectionOne.Length, result.CollectionOne.Count);
+            Assert.Equal(src.CollectionTwo.Count, result.CollectionTwo.Length);
+            for (int i = 0; i < src.CollectionOne.Length; i++)
+            {
+                var srcElemOne = src.CollectionOne[i];
+                var tarElemOne = result.CollectionOne[i];
+
+                var srcElemTwo = src.CollectionTwo[i];
+                var tarElemTwo = result.CollectionTwo[i];
+
+                Assert.Equal(srcElemOne.Name, srcElemOne.Name);
+                Assert.Equal(srcElemOne.Age, srcElemOne.Age);
+
+                Assert.Equal(srcElemTwo.Name, srcElemTwo.Name);
+                Assert.Equal(srcElemTwo.Age, srcElemTwo.Age);
+            }
+        }
+
+        [Fact]
+        public void Manual_Nested_DiffType_Collection_Mapping()
+        {
+            var src = new NestedManualCollectionSource();
+            src.Collection = new List<PrimitiveSource>();
+            for (int i = 0; i < 10; i++)
+            {
+                src.Collection.Add(new PrimitiveSource
+                {
+                    Age = i,
+                    Name = (i + 10).ToString()
+                });
+            }
+
+            var result = _mapper.Map<NestedManualCollectionTarget>(src);
+
+            Assert.Equal(src.Collection.Count, result.Collection.Count);
+            for (int i = 0; i < src.Collection.Count; i++)
+            {
+                var srcElem = src.Collection[i];
+                var tarElem = result.Collection[i];
+
+                Assert.Equal(tarElem.Name, srcElem.Name);
+                Assert.Equal(tarElem.Age, srcElem.Age);
+            }
+        }
+
+        [Fact]
+        public void Collection_Mapping()
+        {
+            var col = new List<PrimitiveSource>();
+            for (int i = 0; i < 10; i++)
+            {
+                col.Add(new PrimitiveSource
+                {
+                    Age = i,
+                    Name = (i + 10).ToString()
+                });
+            };
+
+            var result = _mapper.Map<List<PrimitiveDestination>>(col);
+
+            Assert.Equal(col.Count, result.Count);
+            for (int i = 0; i < col.Count; i++)
+            {
+                var srcElem = col[i];
+                var tarElem = result[i];
+
+                Assert.Equal(tarElem.Name, srcElem.Name);
+                Assert.Equal(tarElem.Age, srcElem.Age);
+            }
+        }
+
+        [Fact]
+        public void Nested_Collection_Mapping()
+        {
+            var src = new NestedCollectionSource();
+            src.Collection = new List<PrimitiveSource>();
+            for(int i = 0; i < 10; i++)
+            {
+                src.Collection.Add(new PrimitiveSource
+                {
+                    Age = i,
+                    Name = (i + 10).ToString()
+                });
+            }
+
+            var result = _mapper.Map<NestedCollectionTarget>(src);
+
+            Assert.Equal(src.Collection.Count, result.Collection.Count);
+            for(int i = 0; i < src.Collection.Count; i++)
+            {
+                var srcElem = src.Collection[i];
+                var tarElem = result.Collection[i];
+
+                Assert.Equal(tarElem.Name, srcElem.Name);
+                Assert.Equal(tarElem.Age, srcElem.Age);
+            }
+        }
+
+        [Fact]
+        public void Guid_Mapping()
+        {
+            var guidModel = new PrimitiveModel
+            {
+                GuidProperty = Guid.NewGuid(),
+                ByteProperty = 1,
+                DecimalProperty = 2.0M,
+                DoubleProperty = 3.0,
+                FloatProperty = 4.0f,
+                IntProperty = 5,
+                ShortProperty = 6,
+                StructProp = new CustomStruct
+                {
+                    StructProp = 7,
+                }
+            };
+
+            var target = _mapper.Map<TargetPrimitiveModel>(guidModel);
+
+            Assert.NotNull(target);
+            Assert.Equal(guidModel.GuidProperty, target.GuidProperty);
+            Assert.Equal(guidModel.ByteProperty, target.ByteProperty);
+            Assert.Equal(guidModel.DecimalProperty, target.DecimalProperty);
+            Assert.Equal(guidModel.DoubleProperty, target.DoubleProperty);
+            Assert.Equal(guidModel.FloatProperty, target.FloatProperty);
+            Assert.Equal(guidModel.IntProperty, target.IntProperty);
+            Assert.Equal(guidModel.ShortProperty, target.ShortProperty);
+            Assert.Equal(guidModel.StructProp.StructProp, target.StructProp.StructProp);
         }
 
         [Fact]

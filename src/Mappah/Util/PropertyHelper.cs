@@ -8,6 +8,30 @@
 
     internal static class PropertyHelper
     {
+
+        public static Type GetElementType(Type colType)
+        {
+            return GetElementTypeInternal(colType);
+        }
+
+        public static Type GetElementType(object collection)
+        {
+            var type = collection.GetType();
+
+            return GetElementTypeInternal(type);
+        }
+
+        private static Type GetElementTypeInternal(Type type)
+        {
+            if (type.IsArray)
+                return type.GetElementType();
+
+            var enumerableInterface = type.GetInterfaces()
+                .FirstOrDefault(i => i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>));
+
+            return enumerableInterface?.GetGenericArguments()[0];
+        }
+
         public static object CreateInstance(Type type)
         {
             return Activator.CreateInstance(type)
@@ -93,6 +117,9 @@
                 return false;
 
             if (sourceType.IsEnum || targetType.IsEnum)
+                return false;
+
+            if (sourceType.IsValueType || targetType.IsValueType)
                 return false;
 
             return true;

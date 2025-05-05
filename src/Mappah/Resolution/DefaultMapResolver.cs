@@ -1,4 +1,6 @@
 ﻿using Mappah.Configuration;
+using Mappah.Util;
+using System.Collections;
 
 namespace Mappah.Resolution
 {
@@ -16,17 +18,63 @@ namespace Mappah.Resolution
             return Map<TDest>(source);
         }
 
-        public IEnumerable<TDest> Map<TDest, TSource>(IEnumerable<TSource> source)
+        public TDest Map<TDest>(object source)
         {
-            ArgumentNullException.ThrowIfNull(source);
+            if (source == null)
+                throw new ArgumentNullException(nameof(source));
 
-            foreach (var item in source)
+            var sourceType = source.GetType();
+            var targetType = typeof(TDest);
+
+            var config = MappingConfigurationStore.TryReadMappingConfiguration(sourceType, targetType);
+            if (config != null)
             {
-                yield return Map<TDest>(item!);
+                return MapInternalSingleElement<TDest>(source);
             }
+
+            if (source is IEnumerable sourceEnumerable && !(source is string))
+            {
+                var elementType = PropertyHelper.GetElementType(targetType)
+                    ?? throw new InvalidOperationException("Couldn't determine collection element type");
+
+                var mapMethod = typeof(DefaultMapResolver).GetMethod(nameof(Map), new[] { typeof(object) })!;
+                var genericMapMethod = mapMethod.MakeGenericMethod(elementType);
+
+                if (targetType.IsArray)
+                {
+                    var tempList = new List<object>();
+                    foreach (var item in sourceEnumerable)
+                    {
+                        var mapped = genericMapMethod.Invoke(this, new[] { item });
+                        tempList.Add(mapped);
+                    }
+
+                    var array = Array.CreateInstance(elementType, tempList.Count);
+                    for (int i = 0; i < tempList.Count; i++)
+                        array.SetValue(tempList[i], i);
+
+                    return (TDest)(object)array;
+                }
+
+                var destination = Activator.CreateInstance(targetType)
+                                 ?? throw new InvalidOperationException($"Cannot create an instance of type {targetType.FullName}");
+
+                if (destination is not IList destList)
+                    throw new InvalidOperationException($"Target type {targetType} must implement IList");
+
+                foreach (var item in sourceEnumerable)
+                {
+                    var mapped = genericMapMethod.Invoke(this, new[] { item });
+                    destList.Add(mapped);
+                }
+
+                return (TDest)destination;
+            }
+
+            throw new InvalidOperationException($"No mapping configuration found for {source.GetType().FullName} -> {typeof(TDest).FullName}");
         }
 
-        public TDest Map<TDest>(object source)
+        private TDest MapInternalSingleElement<TDest>(object source)
         {
             if (source == null)
                 throw new ArgumentNullException(nameof(source));
@@ -43,16 +91,6 @@ namespace Mappah.Resolution
             }
 
             return destination;
-        }
-
-        public IEnumerable<TDest> Map<TDest>(IEnumerable<object> source)
-        {
-            ArgumentNullException.ThrowIfNull(source);
-
-            foreach (var item in source)
-            {
-                yield return Map<TDest>(item!);
-            }
         }
     }
 }
